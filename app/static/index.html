@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Voice Bot | STT -> LLM -> TTS Pipeline</title>
+  <meta name="description" content="Low-latency real-time voice bot pipeline with Speech-to-Text, intent detection, LLM generation, and streaming Text-to-Speech over FastAPI WebSockets.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header>
+    <div class="logo-group">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+      </div>
+      <div class="title-wrap">
+        <h1>Real-Time Voice Assistant</h1>
+        <p>Groq STT &bull; Groq LLM &bull; Edge-TTS Pipeline</p>
+      </div>
+    </div>
+
+    <div class="header-status">
+      <div id="connectionBadge" class="status-badge">
+        <span class="status-dot"></span>
+        <span id="connectionText">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="app-container">
+    
+    <!-- Left Column: Voice Interaction & Conversation Flow -->
+    <section class="interaction-column">
+      
+      <!-- Audio Visualizer & Mic Control -->
+      <div class="hero-card">
+        <div class="canvas-container">
+          <canvas id="waveformCanvas" width="700" height="100"></canvas>
+        </div>
+
+        <div class="mic-control-wrap">
+          <button id="micBtn" class="mic-button" aria-label="Toggle Microphone">
+            <svg id="micIcon" viewBox="0 0 24 24">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          </button>
+          <span id="micLabel" class="mic-label">Click microphone to speak</span>
+        </div>
+      </div>
+
+      <!-- Dialogue History -->
+      <div class="transcript-card">
+        <div class="transcript-header">
+          <h2>Conversation Turns</h2>
+          <button id="clearBtn" class="clear-btn">Clear History</button>
+        </div>
+
+        <div id="messagesList" class="messages-list">
+          <div class="message-item assistant">
+            <div class="message-meta">
+              <span class="intent-tag Greeting">Ready</span>
+              <span>Bot</span>
+            </div>
+            <div class="message-bubble">
+              Hello! I'm your real-time voice bot. Press the microphone above or type below to test the full STT &rarr; LLM &rarr; TTS pipeline.
+            </div>
+          </div>
+        </div>
+
+        <!-- Hybrid Input Bar -->
+        <form id="chatForm" class="input-bar">
+          <input 
+            type="text" 
+            id="textQuery" 
+            class="text-input" 
+            placeholder="Type a message or use voice above..." 
+            autocomplete="off"
+          />
+          <button type="submit" class="send-btn">Send</button>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- Right Column: Latency & Telemetry Dashboard -->
+    <aside class="telemetry-column">
+      
+      <div class="latency-card">
+        <h3 class="card-title">Live Latency Metrics</h3>
+        
+        <div class="metric-grid">
+          <div class="metric-box highlight">
+            <span class="metric-name">E2E First Audio (Perceived)</span>
+            <span class="metric-value" id="valE2EFirst">--<span class="metric-unit">ms</span></span>
+          </div>
+          
+          <div class="metric-box">
+            <span class="metric-name">STT Duration</span>
+            <span class="metric-value" id="valSTT">--<span class="metric-unit">ms</span></span>
+          </div>
+
+          <div class="metric-box">
+            <span class="metric-name">LLM TTFT</span>
+            <span class="metric-value" id="valTTFT">--<span class="metric-unit">ms</span></span>
+          </div>
+
+          <div class="metric-box">
+            <span class="metric-name">TTS First Chunk</span>
+            <span class="metric-value" id="valTTSFirst">--<span class="metric-unit">ms</span></span>
+          </div>
+
+          <div class="metric-box">
+            <span class="metric-name">Total Turn Time</span>
+            <span class="metric-value" id="valE2ETotal">--<span class="metric-unit">ms</span></span>
+          </div>
+        </div>
+
+        <!-- Pipeline Stage Tracker -->
+        <div class="pipeline-steps">
+          <div id="stepSTT" class="step-item">
+            <div class="step-left">
+              <span class="step-dot"></span>
+              <span>1. Speech-to-Text (STT)</span>
+            </div>
+            <span id="timeSTT" class="step-time">--</span>
+          </div>
+
+          <div id="stepLLM" class="step-item">
+            <div class="step-left">
+              <span class="step-dot"></span>
+              <span>2. LLM + Intent Detection</span>
+            </div>
+            <span id="timeLLM" class="step-time">--</span>
+          </div>
+
+          <div id="stepTTS" class="step-item">
+            <div class="step-left">
+              <span class="step-dot"></span>
+              <span>3. Text-to-Speech (TTS)</span>
+            </div>
+            <span id="timeTTS" class="step-time">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session State Info -->
+      <div class="session-card">
+        <h3 class="card-title">Conversation State</h3>
+        <div class="session-info-row">
+          <span class="session-key">Session ID</span>
+          <span class="session-val" id="sessionValId">connecting...</span>
+        </div>
+        <div class="session-info-row">
+          <span class="session-key">Turn Count</span>
+          <span class="session-val" id="sessionValTurns">0</span>
+        </div>
+        <div class="session-info-row">
+          <span class="session-key">Detected Intent</span>
+          <span class="session-val" id="sessionValIntent">None</span>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# FastAPI & ASGI Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+websockets>=12.0
+python-multipart>=0.0.9
+
+# Environment & Settings
+python-dotenv>=1.0.1
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# HTTP & Async Clients
+httpx>=0.27.0
+aiofiles>=23.2.1
+
+# AI & Voice Providers
+# STT / LLM: Groq (ultra-low latency STT + LLM) and OpenAI
+groq>=0.5.0
+openai>=1.14.0
+
+# TTS: Edge-TTS (Zero-API-key fast neural speech synthesis)
+edge-tts>=6.1.10
+
+# Testing & Utilities
+pytest>=8.1.0
+pytest-asyncio>=0.23.0
